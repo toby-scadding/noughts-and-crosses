@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom';
 import socketIOClient from "socket.io-client";
 import './index.css';
 
-const ENDPOINT = "http://192.168.1.179:4001";
+const ENDPOINT = getenv('TIC_TAC_TOE_ENDPOINT');
+var socket = socketIOClient(ENDPOINT);
 
 function Square(props) {
   return (
@@ -58,8 +59,6 @@ class Game extends React.Component {
   }
 
   componentDidMount() {
-    const socket = socketIOClient(ENDPOINT);
-
     socket.on('opponent found', (opponent, symbol, isTurn) => {
       this.setState({
         squares: this.state.squares,
@@ -77,6 +76,8 @@ class Game extends React.Component {
         isTurn: true,
       });
     });
+
+    socket.emit('ready');
   }
 
   handleClick(i) {
@@ -93,7 +94,6 @@ class Game extends React.Component {
       isTurn: false,
     });
     
-    const socket = socketIOClient(ENDPOINT);
     socket.emit('make move', squares, this.state.opponent);
   }
 
