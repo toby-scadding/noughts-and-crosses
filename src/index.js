@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import socketIOClient from "socket.io-client";
 import './index.css';
 
-const ENDPOINT = getenv('TIC_TAC_TOE_ENDPOINT');
+const ENDPOINT = '10.0.10.192:3001';
 var socket = socketIOClient(ENDPOINT);
 
 function Square(props) {
@@ -52,49 +52,60 @@ class Game extends React.Component {
     super(props);
     this.state = {
       squares: Array(9).fill(null),
-      opponent: null,
       symbol: null,
+      hasOpponent: false,
       isTurn: false,
     };
   }
 
   componentDidMount() {
-    socket.on('opponent found', (opponent, symbol, isTurn) => {
+    socket.on('opponent found', (symbol, isTurn) => {
       this.setState({
         squares: this.state.squares,
-        opponent: opponent,
         symbol: symbol,
+        hasOpponent: true,
         isTurn: isTurn,
       });
+    });
+
+    socket.on('opponent disconnected', () => {
+      this.setState({
+        squares: Array(9).fill(null),
+        symbol: null,
+        hasOpponent: false,
+        isTurn: false,
+      });
+
+      socket.emit('waiting');
     });
 
     socket.on('make move', (squares) => {
       this.setState({
         squares: squares,
-        opponent: this.state.opponent,
         symbol: this.state.symbol,
+        hasOpponent: this.state.hasOpponent,
         isTurn: true,
       });
     });
 
-    socket.emit('ready');
+    socket.emit('waiting');
   }
 
   handleClick(i) {
     const squares = this.state.squares.slice();
-    if (!this.state.isTurn || squares[i] || calculateWinner(squares)) {
+    if (!this.state.hasOpponent || !this.state.isTurn || squares[i] || calculateWinner(squares)) {
       return;
     }
     squares[i] = this.state.symbol;
 
     this.setState({
       squares: squares,
-      opponent: this.state.opponent,
       symbol: this.state.symbol,
+      hasOpponent: this.state.hasOpponent,
       isTurn: false,
     });
     
-    socket.emit('make move', squares, this.state.opponent);
+    socket.emit('make move', squares);
   }
 
   render() {
@@ -102,7 +113,7 @@ class Game extends React.Component {
 
     let status;
     if (!winner) {
-      if (this.state.opponent) {
+      if (this.state.hasOpponent) {
         status = this.state.isTurn ? "Your turn" : "Opponent's turn";
       } else {
         status = 'Waiting for opponent...';
